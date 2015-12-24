@@ -1,0 +1,9 @@
+package main
+
+// Rename this file to config.go and change the variables
+
+const (
+	flowdockAPIKey = "4c1525309094681c0725b23d47157e2e" // The Notifybot api key
+	notificationStorage = "/tmp/flowdock_notifications"
+	prefix = "%"
+)
