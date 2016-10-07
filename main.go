@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"regexp"
     
 	"github.com/gnyman/flowdock"
 )
@@ -172,7 +173,9 @@ func main() {
 					flowdock.SendMessageToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, "Notifybot does slow notifications, create a slow notification for a person by doing !<nick>  or !!<nick>. The first will @<nick> the person the following day at 09:00 Finnish time, the second will notify him one hour later. If the target is active in the thread, both kind of notifications will be cleared.")
 				}
 
-				for _, field := range strings.Fields(event.Content) {
+				var nameRegxp = regexp.MustCompile(fmt.Sprintf(`(\%s{1,2}[\wåäö]+)`, prefix))
+
+				for _, field := range nameRegxp.FindAllString(event.Content, -1) {
 					if strings.HasPrefix(field, strings.Repeat(prefix,2)) {
 						possibleUsername := strings.TrimRight(strings.ToLower(strings.TrimLeft(field, prefix)), ",.? ")
 						log.Printf("PossibleUsername: %v", possibleUsername)
