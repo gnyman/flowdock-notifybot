@@ -286,7 +286,29 @@ func main() {
 				//		case flowdock.MessageEditEvent:
 				//			log.Printf("Looks like @%s just updated their previous message: '%s'. New message is '%s'", c.DetailsForUser(event.UserID).Nick, messageStore[event.Content.MessageID], event.Content.UpdatedMessage)
 			case flowdock.UserActivityEvent:
+				log.Printf("User activity event %v", event)
 				continue // Especially with > 10 people in your org, you will get MANY of these events.
+			case flowdock.ActionEvent:
+				log.Printf("Action event %v", event)
+				// If we get a flow-change, reload flows and users
+				if event.Type == "flow-change" {
+					c = flowdock.NewClient(flowdockAPIKey)
+					err := c.Connect(nil, events)
+					if err != nil {
+						log.Printf("Error could not reconnect %v", err)
+						time.Sleep(15 * time.Second)
+					}
+					flows = make(map[string]flowdock.Flow)
+					for _, flow := range c.AvailableFlows {
+						flows[flow.ID] = flow
+					}
+					for userID, _ := range c.Users {
+						usernames[strings.ToLower(c.Users[userID].Nick)] = userID
+						if _, ok := notifications[userID]; !ok {
+							notifications[userID] = make(map[string]Notification)
+						}
+					}
+				}
 			case nil:
 				c = flowdock.NewClient(flowdockAPIKey)
 				err := c.Connect(nil, events)
