@@ -108,7 +108,7 @@ func main() {
 	}
 	log.Println(usernames)
 
-	location, err := time.LoadLocation("Europe/Zurich")
+	location, err := time.LoadLocation("Europe/Helsinki")
 	if err != nil {
 		log.Panic("Could not load timeszone info")
 	}
@@ -128,7 +128,7 @@ func main() {
 				if len(notifs) != 0 {
 					log.Printf("UserID: %v has notifications %v\n", userID, notifs)
 					for threadID, notif := range notifs {
-						if time.Now().After(notif.Timestamp) {
+						if time.Now().In(location).After(notif.Timestamp) {
 							log.Printf("Sending notification due to no activity, %s after %s", notif.Timestamp, time.Now())
 							pingUser := c.Users[userID].Nick
 							message := fmt.Sprintf("@%v, slow ping from %v", pingUser, notif.Pinger)
