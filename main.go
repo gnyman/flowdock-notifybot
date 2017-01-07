@@ -23,6 +23,7 @@ type Notification struct {
 	Thread    string
 	Flow      string
 	Pinger    string
+	MessageID int64
 }
 
 // Global variables
@@ -79,12 +80,12 @@ func saveNotifications(notifs map[string]map[string]Notification, path string) e
 	return nil
 }
 
-func addNotification(notifications map[string]map[string]Notification, atTime time.Time, targetUsername string, fromUsername string, threadID string, flowID string) error {
+func addNotification(notifications map[string]map[string]Notification, atTime time.Time, targetUsername string, fromUsername string, threadID string, flowID string, messageID int64) error {
 	fmt.Println(notifications)
 	if _, exists := usernames[targetUsername]; !exists {
 		return fmt.Errorf("We do not know that user")
 	}
-	notifications[usernames[targetUsername]][threadID] = Notification{atTime, threadID, flowID, fromUsername}
+	notifications[usernames[targetUsername]][threadID] = Notification{atTime, threadID, flowID, fromUsername, messageID}
 	return nil
 }
 
@@ -131,7 +132,7 @@ func main() {
 						if time.Now().In(location).After(notif.Timestamp) {
 							log.Printf("Sending notification due to no activity, %s after %s", notif.Timestamp, time.Now())
 							pingUser := c.Users[userID].Nick
-							message := fmt.Sprintf("@%v, slow ping from %v", pingUser, notif.Pinger)
+							message := fmt.Sprintf("@%v, slow ping from %v from [here](https://www.flowdock.com/app/walkbase/test/messages/%d)", pingUser, notif.Pinger, notif.MessageID)
 							var body []byte
 							var err error
 							if notif.Thread != "" {
