@@ -1,3 +1,5 @@
+// +build ci
+
 package main
 
 // Rename this file to config.go and change the variables

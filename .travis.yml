@@ -6,3 +6,5 @@ go:
 
 sudo: false
 dist: trusty
+
+gobuild_args: -tags ci
