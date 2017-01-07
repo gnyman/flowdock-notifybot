@@ -79,9 +79,13 @@ func saveNotifications(notifs map[string]map[string]Notification, path string) e
 	return nil
 }
 
-func addNotification(atTime time.Time, targetUsername string, fromUsername string, threadID string, flowID string) {
-    fmt.Println(notifications)
+func addNotification(notifications map[string]map[string]Notification, atTime time.Time, targetUsername string, fromUsername string, threadID string, flowID string) error {
+	fmt.Println(notifications)
+	if _, exists := usernames[targetUsername]; !exists {
+		return fmt.Errorf("We do not know that user")
+	}
 	notifications[usernames[targetUsername]][threadID] = Notification{atTime, threadID, flowID, fromUsername}
+	return nil
 }
 
 func main() {
