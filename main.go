@@ -7,11 +7,11 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"regexp"
-    
+
 	"github.com/gnyman/flowdock"
 )
 
@@ -69,8 +69,8 @@ func restoreNotifications(path string) map[string]map[string]Notification {
 		return decodedData
 	}
 	log.Println("No notification storage found, not restoring anything")
-	err:
-		return make(map[string]map[string]Notification)
+err:
+	return make(map[string]map[string]Notification)
 }
 
 func saveNotifications(notifs map[string]map[string]Notification, path string) error {
@@ -82,6 +82,7 @@ func saveNotifications(notifs map[string]map[string]Notification, path string) e
 	}
 
 	ioutil.WriteFile(path, rawData.Bytes(), 0600)
+	log.Println("Updated notification cache...")
 	return nil
 }
 
@@ -156,7 +157,7 @@ func main() {
 		case event := <-events:
 			switch event := event.(type) {
 			case flowdock.MessageEvent:
-                log.Println("Message event")
+				log.Printf("Message event %v", event)
 				orgNflow := strings.Split(event.Flow, ":")
 				var org string
 				var flow string
