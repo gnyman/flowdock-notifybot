@@ -61,6 +61,11 @@ func restoreNotifications(path string) map[string]map[string]Notification {
 
 		var decodedData map[string]map[string]Notification
 		err = dec.Decode(&decodedData)
+		if err != nil {
+			log.Printf("Error could not decode %v", dec)
+			goto err
+		}
+		log.Printf("Restored notifications %v", decodedData)
 		return decodedData
 	}
 	log.Println("No notification storage found, not restoring anything")
@@ -102,9 +107,9 @@ func main() {
 	usernames = make(map[string]string)
 
 	for userID, _ := range c.Users {
-		if _, ok := usernames[userID]; !ok {
+		usernames[strings.ToLower(c.Users[userID].Nick)] = userID
+		if _, ok := notifications[userID]; !ok {
 			notifications[userID] = make(map[string]Notification)
-			usernames[strings.ToLower(c.Users[userID].Nick)] = userID	
 		}
 	}
 	log.Println(usernames)
@@ -143,6 +148,7 @@ func main() {
 							}
 							log.Printf("%v\n", string(body))
 							delete(notifications[userID], threadID)
+							saveNotifications(notifications, notificationStorage)
 						}
 					}
 				}
