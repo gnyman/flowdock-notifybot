@@ -25,7 +25,8 @@ func TestStoreAndRestoreNotifications(t *testing.T) {
 	var fromUser = "Gabriel"
 	var threadID = "12345abcdefg"
 	var flowID = "abcdefg123456"
-	err := addNotification(notifications, time, targetUser, fromUser, threadID, flowID)
+	var messageID int64 = 12345
+	err := addNotification(notifications, time, targetUser, fromUser, threadID, flowID, messageID)
 
 	if err != nil {
 		t.Errorf("Could not add notification, error was %s", err)
@@ -36,7 +37,7 @@ func TestStoreAndRestoreNotifications(t *testing.T) {
 
 	restoredNotifications := restoreNotifications(path)
 
-	expectedNotification := Notification{time, threadID, flowID, fromUser}
+	expectedNotification := Notification{time, threadID, flowID, fromUser, messageID}
 	if restoredNotifications["12345"]["12345abcdefg"] != expectedNotification {
 		t.Error("Notification not found in map as expected")
 	}
@@ -56,19 +57,20 @@ func TestAddNotification(t *testing.T) {
 	var fromUser = "Gabriel"
 	var threadID = "12345abcdefg"
 	var flowID = "abcdefg123456"
-	addNotification(notifications, time, targetUser, fromUser, threadID, flowID)
+	var messageID int64 = 1234
+	addNotification(notifications, time, targetUser, fromUser, threadID, flowID, messageID)
 
-	expectedNotification := Notification{time, threadID, flowID, fromUser}
+	expectedNotification := Notification{time, threadID, flowID, fromUser, messageID}
 	if notifications["12345"]["12345abcdefg"] != expectedNotification {
 		t.Error("Notification not found in map as expected")
 	}
 
-	unexpectedNotification := Notification{time, "wrongThreadId", flowID, fromUser}
+	unexpectedNotification := Notification{time, "wrongThreadId", flowID, fromUser, messageID}
 	if notifications["12345"]["12345abcdefg"] == unexpectedNotification {
 		t.Error("Matches even though it should not")
 	}
 
-	err := addNotification(notifications, time, "nonExistingTargetUser", fromUser, threadID, flowID)
+	err := addNotification(notifications, time, "nonExistingTargetUser", fromUser, threadID, flowID, messageID)
 
 	if err == nil {
 		t.Error("Expected error when adding non existing user but got none")

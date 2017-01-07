@@ -2,7 +2,8 @@
 
 package main
 
-// Rename this file to config.go and change the variables
+// Rename this file to config.go and change the variables,
+// also you probably want to change +build ci to +build !ci
 
 import (
 	"time"
