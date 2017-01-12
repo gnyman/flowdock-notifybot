@@ -213,9 +213,17 @@ func main() {
 						notificationTime = time.Now().In(location).Add(fasterDelay)
 						notifyTag = fmt.Sprintf("notify-shorter-%v", possibleUsername)
 					}
-					addNotification(notifications, notificationTime, possibleUsername, pinger, event.ThreadID, event.Flow, event.ID)
-					flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
-					saveNotifications(notifications, notificationStorage)
+					if !notificationTime.IsZero() {
+						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notificationTime)
+						err = addNotification(notifications, notificationTime, possibleUsername, pinger, event.ThreadID, event.Flow, event.ID)
+						if err != nil {
+							log.Printf("Error adding notification...")
+						}
+						flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
+						saveNotifications(notifications, notificationStorage)
+					} else {
+						log.Println("No time was set for notification")
+					}
 				}
 				log.Printf("%s said (%s): '%s'", c.DetailsForUser(event.UserID).Nick, event.Flow, event.Content)
 			case flowdock.CommentEvent:
@@ -285,9 +293,17 @@ func main() {
 						notificationTime = time.Now().In(location).Add(fasterDelay)
 						notifyTag = fmt.Sprintf("notify-shorter-%v", possibleUsername)
 					}
-					addNotification(notifications, notificationTime, possibleUsername, pinger, messageID, event.Flow, event.ID)
-					flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
-					saveNotifications(notifications, notificationStorage)
+					if !notificationTime.IsZero() {
+						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notificationTime)
+						err = addNotification(notifications, notificationTime, possibleUsername, pinger, messageID, event.Flow, event.ID)
+						if err != nil {
+							log.Printf("Error adding notification...")
+						}
+						flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
+						saveNotifications(notifications, notificationStorage)
+					} else {
+						log.Println("No time was set for notification")
+					}
 				}
 
 				//		case flowdock.MessageEditEvent:
@@ -299,6 +315,7 @@ func main() {
 				log.Printf("Action event %v", event)
 				// If we get a flow-change, reload flows and users
 				if event.Type == "flow-change" {
+					log.Println("Flow-change event, reconnecting and updating stuff...")
 					c = flowdock.NewClient(flowdockAPIKey)
 					err := c.Connect(nil, events)
 					if err != nil {
