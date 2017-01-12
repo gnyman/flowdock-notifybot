@@ -194,7 +194,7 @@ func main() {
 					possiblePrefix := field[1]
 					possibleUsername := field[2]
 					// Check first if the username is a known username, if not skip
-					if _, ok := usernames[possibleUsername]; !ok {
+					if _, ok := usernames[strings.ToLower(possibleUsername)]; !ok {
 						continue
 					}
 					pinger := c.Users[event.UserID].Nick
@@ -266,7 +266,7 @@ func main() {
 					possiblePrefix := field[1]
 					possibleUsername := field[2]
 					// Check first if the username is a known username, if not skip
-					if _, ok := usernames[possibleUsername]; !ok {
+					if _, ok := usernames[strings.ToLower(possibleUsername)]; !ok {
 						continue
 					}
 					pinger := c.Users[event.UserID].Nick
