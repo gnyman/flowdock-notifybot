@@ -138,7 +138,7 @@ func main() {
 						if time.Now().In(location).After(notif.Timestamp) {
 							log.Printf("Sending notification due to no activity, %s after %s", notif.Timestamp, time.Now())
 							pingUser := c.Users[userID].Nick
-							message := fmt.Sprintf("@%v, slow ping from %v from [here](https://www.flowdock.com/app/walkbase/%s/messages/%d)", pingUser, notif.Pinger, flows[notif.Flow].APIName, notif.MessageID)
+							message := fmt.Sprintf("@%v, slow ping from %v from [here](https://www.flowdock.com/app/walkbase/%s/messages/%d)", pingUser, strings.Title(notif.Pinger), flows[notif.Flow].APIName, notif.MessageID)
 							var body []byte
 							var err error
 							if notif.Thread != "" {
@@ -192,9 +192,9 @@ func main() {
 						continue
 					}
 					possiblePrefix := field[1]
-					possibleUsername := field[2]
+					possibleUsername := strings.ToLower(field[2])
 					// Check first if the username is a known username, if not skip
-					if _, ok := usernames[strings.ToLower(possibleUsername)]; !ok {
+					if _, ok := usernames[possibleUsername]; !ok {
 						continue
 					}
 					pinger := c.Users[event.UserID].Nick
@@ -272,9 +272,9 @@ func main() {
 						continue
 					}
 					possiblePrefix := field[1]
-					possibleUsername := field[2]
+					possibleUsername := strings.ToLower(field[2])
 					// Check first if the username is a known username, if not skip
-					if _, ok := usernames[strings.ToLower(possibleUsername)]; !ok {
+					if _, ok := usernames[possibleUsername]; !ok {
 						continue
 					}
 					pinger := c.Users[event.UserID].Nick
