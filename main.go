@@ -37,7 +37,7 @@ var slowPrefix = "!"
 var fastPrefix = "!!"
 var fasterPrefix = "!!!"
 var notifications Notifications
-var usernames map[string]string
+var users Users
 
 // Return the next workday (not saturday or sunday) at 9 helsinki time
 func NextWorkdayAtNine() time.Time {
@@ -101,15 +101,11 @@ func main() {
 		panic(err)
 	}
 
-	usernames = make(map[string]string)
-
+	users = NewUsers()
 	for userID, _ := range c.Users {
-		usernames[strings.ToLower(c.Users[userID].Nick)] = userID
-		if _, ok := notifications[userID]; !ok {
-			notifications[userID] = make(map[string]Notification)
-		}
+		users.Add(c.Users[userID].Nick, userID)
 	}
-	log.Println(usernames)
+	users.Print()
 
 	location, err := time.LoadLocation("Europe/Helsinki")
 	if err != nil {
@@ -190,7 +186,7 @@ func main() {
 					possiblePrefix := field[1]
 					possibleUsername := strings.ToLower(field[2])
 					// Check first if the username is a known username, if not skip
-					if _, ok := usernames[possibleUsername]; !ok {
+					if !users.Exists(possibleUsername) {
 						continue
 					}
 					pinger := c.Users[event.UserID].Nick
@@ -211,11 +207,14 @@ func main() {
 					}
 					if !notificationTime.IsZero() {
 						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notificationTime)
-						// TODO: check username before adding
-						notification := NewNotification(notificationTime, pinger, event.ThreadID, event.Flow, event.ID)
-						notifications.Add(notification, possibleUsername, event.ThreadID)
-						flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
-						notifications.Save(notificationStorage)
+						if users.Exists(possibleUsername) {
+							notification := NewNotification(notificationTime, pinger, event.ThreadID, event.Flow, event.ID)
+							notifications.Add(notification, possibleUsername, event.ThreadID)
+							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
+							notifications.Save(notificationStorage)
+						} else {
+							log.Printf("User '%s' does not exists", possibleUsername)
+						}
 					} else {
 						log.Println("No time was set for notification")
 					}
@@ -269,7 +268,7 @@ func main() {
 					possiblePrefix := field[1]
 					possibleUsername := strings.ToLower(field[2])
 					// Check first if the username is a known username, if not skip
-					if _, ok := usernames[possibleUsername]; !ok {
+					if !users.Exists(possibleUsername) {
 						continue
 					}
 					pinger := c.Users[event.UserID].Nick
@@ -290,11 +289,14 @@ func main() {
 					}
 					if !notificationTime.IsZero() {
 						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notificationTime)
-						// TODO: check username before adding
-						notification := NewNotification(notificationTime, pinger, messageID, event.Flow, event.ID)
-						notifications.Add(notification, possibleUsername, event.Flow)
-						flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
-						notifications.Save(notificationStorage)
+						if users.Exists(possibleUsername) {
+							notification := NewNotification(notificationTime, pinger, messageID, event.Flow, event.ID)
+							notifications.Add(notification, possibleUsername, event.Flow)
+							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
+							notifications.Save(notificationStorage)
+						} else {
+							log.Printf("User '%s' does not exists", possibleUsername)
+						}
 					} else {
 						log.Println("No time was set for notification")
 					}
@@ -321,10 +323,7 @@ func main() {
 						flows[flow.ID] = flow
 					}
 					for userID, _ := range c.Users {
-						usernames[strings.ToLower(c.Users[userID].Nick)] = userID
-						if _, ok := notifications[userID]; !ok {
-							notifications[userID] = make(map[string]Notification)
-						}
+						users.Add(c.Users[userID].Nick, userID)
 					}
 				}
 			case nil:
