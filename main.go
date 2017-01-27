@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/gob"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,6 +14,8 @@ import (
 	"time"
 
 	"github.com/gnyman/flowdock"
+
+	"gopkg.in/yaml.v2"
 )
 
 type ThreadID int64
@@ -26,7 +29,24 @@ type Notification struct {
 	MessageID int64
 }
 
+type config struct {
+	FlowdockAPIKey string `yaml:"flowdock_api_key"`
+	StoragePath    string `yaml:"storage_path"`
+	Prefix         rune   `yaml:"ping_prefix"`
+}
+
+const (
+	fastDelay   = 2 * time.Hour
+	fasterDelay = 25 * time.Minute
+)
+
 // Global variables
+var flowdockAPIKey = ""
+var notificationStorage = "/tmp/flowdock_notifications"
+var prefix = "!"
+var slowPrefix = "!"
+var fastPrefix = "!!"
+var fasterPrefix = "!!!"
 var notifications map[string]map[string]Notification
 var usernames map[string]string
 
@@ -96,11 +116,42 @@ func addNotification(notifications map[string]map[string]Notification, atTime ti
 }
 
 func main() {
+	var configFile string
+	flag.StringVar(&configFile, "config", "config.yaml", "Config file to read settings from")
+	flag.Parse()
+
+	// Read settings from config file
+	var conf config
+	content, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		log.Fatalln("Failed to open config file:", err)
+	}
+	err = yaml.Unmarshal(content, &conf)
+	if err != nil {
+		log.Fatalln("Failed to parse config file:", err)
+	}
+
+	// override defaults
+	flowdockAPIKey = conf.FlowdockAPIKey
+	if conf.StoragePath != "" {
+		notificationStorage = conf.StoragePath
+	}
+	if conf.Prefix != 0 {
+		slowPrefix = string(conf.Prefix)
+		fastPrefix = slowPrefix + slowPrefix
+		fasterPrefix = slowPrefix + fastPrefix
+	}
+
+	// check that API key is given
+	if flowdockAPIKey == "" {
+		log.Fatal("An API key for Flowdock must be specified")
+	}
+
 	notifications = restoreNotifications(notificationStorage)
 
 	events := make(chan flowdock.Event)
 	c := flowdock.NewClient(flowdockAPIKey)
-	err := c.Connect(nil, events)
+	err = c.Connect(nil, events)
 	if err != nil {
 		panic(err)
 	}
