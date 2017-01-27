@@ -1,13 +1,10 @@
 package main
 
 import (
-	"bytes"
-	"encoding/gob"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -20,14 +17,6 @@ import (
 
 type ThreadID int64
 type Username string
-
-type Notification struct {
-	Timestamp time.Time
-	Thread    string
-	Flow      string
-	Pinger    string
-	MessageID int64
-}
 
 type config struct {
 	FlowdockAPIKey string `yaml:"flowdock_api_key"`
@@ -47,7 +36,7 @@ var prefix = "!"
 var slowPrefix = "!"
 var fastPrefix = "!!"
 var fasterPrefix = "!!!"
-var notifications map[string]map[string]Notification
+var notifications Notifications
 var usernames map[string]string
 
 // Return the next workday (not saturday or sunday) at 9 helsinki time
@@ -67,52 +56,6 @@ func NextWorkdayAtNine() time.Time {
 		}
 	}
 	return now
-}
-
-func restoreNotifications(path string) map[string]map[string]Notification {
-	if _, err := os.Stat(path); err == nil {
-		rawData, err := ioutil.ReadFile(path)
-		if err != nil {
-			log.Println("Error could not restore notifications because could not read file :-(")
-			goto err
-		}
-		buffer := bytes.NewBuffer(rawData)
-		dec := gob.NewDecoder(buffer)
-
-		var decodedData map[string]map[string]Notification
-		err = dec.Decode(&decodedData)
-		if err != nil {
-			log.Printf("Error could not decode %v", dec)
-			goto err
-		}
-		log.Printf("Restored notifications %v", decodedData)
-		return decodedData
-	}
-	log.Println("No notification storage found, not restoring anything")
-err:
-	return make(map[string]map[string]Notification)
-}
-
-func saveNotifications(notifs map[string]map[string]Notification, path string) error {
-	var rawData bytes.Buffer
-	enc := gob.NewEncoder(&rawData)
-	err := enc.Encode(notifs)
-	if err != nil {
-		log.Println("Error could not save the notifications")
-	}
-
-	ioutil.WriteFile(path, rawData.Bytes(), 0600)
-	log.Println("Updated notification cache...")
-	return nil
-}
-
-func addNotification(notifications map[string]map[string]Notification, atTime time.Time, targetUsername string, fromUsername string, threadID string, flowID string, messageID int64) error {
-	fmt.Println(notifications)
-	if _, exists := usernames[targetUsername]; !exists {
-		return fmt.Errorf("We do not know that user")
-	}
-	notifications[usernames[targetUsername]][threadID] = Notification{atTime, threadID, flowID, fromUsername, messageID}
-	return nil
 }
 
 func main() {
@@ -147,7 +90,9 @@ func main() {
 		log.Fatal("An API key for Flowdock must be specified")
 	}
 
-	notifications = restoreNotifications(notificationStorage)
+	notifications := NewNotifications()
+	restored, err := notifications.Restore(notificationStorage)
+	log.Printf("Restored %d notifations from file '%s'", restored, notificationStorage)
 
 	events := make(chan flowdock.Event)
 	c := flowdock.NewClient(flowdockAPIKey)
@@ -199,8 +144,8 @@ func main() {
 								log.Panic(err)
 							}
 							log.Printf("%v\n", string(body))
-							delete(notifications[userID], threadID)
-							saveNotifications(notifications, notificationStorage)
+							notifications.Delete(userID, threadID)
+							notifications.Save(notificationStorage)
 						}
 					}
 				}
@@ -227,7 +172,7 @@ func main() {
 
 				if _, found := notifications[event.UserID][event.ThreadID]; found {
 					log.Printf("User %v was active in thread %v for which he had a notificating pending, clearing notification", event.UserID, event.ThreadID)
-					delete(notifications[event.UserID], event.ThreadID)
+					notifications.Delete(event.UserID, event.ThreadID)
 					nickClear := fmt.Sprintf("cleared-%s", c.Users[event.UserID].Nick)
 					flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{nickClear})
 				}
@@ -266,12 +211,11 @@ func main() {
 					}
 					if !notificationTime.IsZero() {
 						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notificationTime)
-						err = addNotification(notifications, notificationTime, possibleUsername, pinger, event.ThreadID, event.Flow, event.ID)
-						if err != nil {
-							log.Printf("Error adding notification...")
-						}
+						// TODO: check username before adding
+						notification := NewNotification(notificationTime, pinger, event.ThreadID, event.Flow, event.ID)
+						notifications.Add(notification, possibleUsername, event.ThreadID)
 						flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
-						saveNotifications(notifications, notificationStorage)
+						notifications.Save(notificationStorage)
 					} else {
 						log.Println("No time was set for notification")
 					}
@@ -307,7 +251,7 @@ func main() {
 
 				if _, found := notifications[event.UserID][messageID]; found {
 					log.Printf("User %v was active in comment thread %v for which he had a notificating pending, clearing notification", event.UserID, messageID)
-					delete(notifications[event.UserID], messageID)
+					notifications.Delete(event.UserID, messageID)
 					nickClear := fmt.Sprintf("cleared-%s", c.Users[event.UserID].Nick)
 					flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{nickClear})
 				}
@@ -346,12 +290,11 @@ func main() {
 					}
 					if !notificationTime.IsZero() {
 						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notificationTime)
-						err = addNotification(notifications, notificationTime, possibleUsername, pinger, messageID, event.Flow, event.ID)
-						if err != nil {
-							log.Printf("Error adding notification...")
-						}
+						// TODO: check username before adding
+						notification := NewNotification(notificationTime, pinger, messageID, event.Flow, event.ID)
+						notifications.Add(notification, possibleUsername, event.Flow)
 						flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
-						saveNotifications(notifications, notificationStorage)
+						notifications.Save(notificationStorage)
 					} else {
 						log.Println("No time was set for notification")
 					}
