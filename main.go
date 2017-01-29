@@ -58,6 +58,28 @@ func NextWorkdayAtNine() time.Time {
 	return now
 }
 
+// createNotifyTimeAndTag returns the time when the notification shall be sent
+// and the tag used
+func createNotifyTimeAndTag(prefix, username string, location *time.Location) (time.Time, string) {
+	var t time.Time
+	var tag string
+
+	if prefix == fastPrefix {
+		t = time.Now().In(location).Add(fastDelay)
+		tag = fmt.Sprintf("notify-short-%v", username)
+	}
+	if prefix == slowPrefix {
+		t = NextWorkdayAtNine()
+		tag = fmt.Sprintf("notify-long-%v", username)
+	}
+	if prefix == fasterPrefix {
+		t = time.Now().In(location).Add(fasterDelay)
+		tag = fmt.Sprintf("notify-shorter-%v", username)
+	}
+
+	return t, tag
+}
+
 func main() {
 	var configFile string
 	flag.StringVar(&configFile, "config", "config.yaml", "Config file to read settings from")
@@ -191,24 +213,11 @@ func main() {
 					}
 					pinger := c.Users[event.UserID].Nick
 
-					var notificationTime time.Time
-					var notifyTag string
-					if possiblePrefix == fastPrefix {
-						notificationTime = time.Now().In(location).Add(fastDelay)
-						notifyTag = fmt.Sprintf("notify-short-%v", possibleUsername)
-					}
-					if possiblePrefix == slowPrefix {
-						notificationTime = NextWorkdayAtNine()
-						notifyTag = fmt.Sprintf("notify-long-%v", possibleUsername)
-					}
-					if possiblePrefix == fasterPrefix {
-						notificationTime = time.Now().In(location).Add(fasterDelay)
-						notifyTag = fmt.Sprintf("notify-shorter-%v", possibleUsername)
-					}
-					if !notificationTime.IsZero() {
-						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notificationTime)
+					notifyTime, notifyTag := createNotifyTimeAndTag(possiblePrefix, possibleUsername, location)
+					if !notifyTime.IsZero() {
+						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notifyTime)
 						if users.Exists(possibleUsername) {
-							notification := NewNotification(notificationTime, pinger, event.ThreadID, event.Flow, event.ID)
+							notification := NewNotification(notifyTime, pinger, event.ThreadID, event.Flow, event.ID)
 							notifications.Add(notification, possibleUsername, event.ThreadID)
 							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
 							notifications.Save(notificationStorage)
@@ -273,24 +282,11 @@ func main() {
 					}
 					pinger := c.Users[event.UserID].Nick
 
-					var notificationTime time.Time
-					var notifyTag string
-					if possiblePrefix == fastPrefix {
-						notificationTime = time.Now().In(location).Add(fastDelay)
-						notifyTag = fmt.Sprintf("notify-short-%v", possibleUsername)
-					}
-					if possiblePrefix == slowPrefix {
-						notificationTime = NextWorkdayAtNine()
-						notifyTag = fmt.Sprintf("notify-long-%v", possibleUsername)
-					}
-					if possiblePrefix == fasterPrefix {
-						notificationTime = time.Now().In(location).Add(fasterDelay)
-						notifyTag = fmt.Sprintf("notify-shorter-%v", possibleUsername)
-					}
-					if !notificationTime.IsZero() {
-						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notificationTime)
+					notifyTime, notifyTag := createNotifyTimeAndTag(possiblePrefix, possibleUsername, location)
+					if !notifyTime.IsZero() {
+						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notifyTime)
 						if users.Exists(possibleUsername) {
-							notification := NewNotification(notificationTime, pinger, messageID, event.Flow, event.ID)
+							notification := NewNotification(notifyTime, pinger, messageID, event.Flow, event.ID)
 							notifications.Add(notification, possibleUsername, event.Flow)
 							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
 							notifications.Save(notificationStorage)
