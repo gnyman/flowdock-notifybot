@@ -137,6 +137,12 @@ func main() {
 	// build regex for matching pings
 	notifRegex := regexp.MustCompile(fmt.Sprintf(`(\%s+)([\wåäö]+)`, prefix))
 
+	helpMessage := "Notifybot does slow notifications."
+	helpMessage += " Create a slow notification for a person by doing " + slowPrefix + "<nick> or " + fastPrefix + "<nick> or " + fasterPrefix + "<nick>."
+	helpMessage += " The first will @<nick> the person the following day at 09:00 Finnish time."
+	helpMessage += " The others will notify <nick> after " + string(fastDelay) + " and " + string(fasterDelay) + " respectively."
+	helpMessage += " If the target is active in the thread, both all of notifications will be cleared."
+
 	flows := make(map[string]flowdock.Flow)
 	for _, flow := range c.AvailableFlows {
 		flows[flow.ID] = flow
@@ -198,8 +204,8 @@ func main() {
 					flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{nickClear})
 				}
 
-				if strings.HasPrefix(event.Content, "!help") {
-					flowdock.SendMessageToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, "Notifybot does slow notifications, create a slow notification for a person by doing !<nick>  or !!<nick>. The first will @<nick> the person the following day at 09:00 Finnish time, the second will notify him one hour later. If the target is active in the thread, both kind of notifications will be cleared.")
+				if strings.HasPrefix(event.Content, prefix+"help") {
+					flowdock.SendMessageToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, helpMessage)
 				}
 
 				for _, field := range notifRegex.FindAllStringSubmatch(event.Content, -1) {
@@ -265,8 +271,8 @@ func main() {
 					flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{nickClear})
 				}
 
-				if strings.HasPrefix(event.Content.Text, "!help") {
-					flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, "Notifybot does slow notifications, create a slow notification for a person by doing !<nick>  or !!<nick>. The first will @<nick> the person the following day at 09:00 Finnish time, the second will notify him one hour later. If the target is active in the thread, both kind of notifications will be cleared.")
+				if strings.HasPrefix(event.Content.Text, prefix+"help") {
+					flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, helpMessage)
 				}
 
 				for _, field := range notifRegex.FindAllStringSubmatch(event.Content.Text, -1) {
