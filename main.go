@@ -134,6 +134,9 @@ func main() {
 		log.Panic("Could not load timeszone info")
 	}
 
+	// build regex for matching pings
+	notifRegex := regexp.MustCompile(fmt.Sprintf(`(\%s+)([\wåäö]+)`, prefix))
+
 	flows := make(map[string]flowdock.Flow)
 	for _, flow := range c.AvailableFlows {
 		flows[flow.ID] = flow
@@ -198,8 +201,6 @@ func main() {
 				if strings.HasPrefix(event.Content, "!help") {
 					flowdock.SendMessageToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, "Notifybot does slow notifications, create a slow notification for a person by doing !<nick>  or !!<nick>. The first will @<nick> the person the following day at 09:00 Finnish time, the second will notify him one hour later. If the target is active in the thread, both kind of notifications will be cleared.")
 				}
-
-				var notifRegex = regexp.MustCompile(fmt.Sprintf(`(\%s+)([\wåäö]+)`, prefix))
 
 				for _, field := range notifRegex.FindAllStringSubmatch(event.Content, -1) {
 					if len(field) < 2 {
@@ -267,8 +268,6 @@ func main() {
 				if strings.HasPrefix(event.Content.Text, "!help") {
 					flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, "Notifybot does slow notifications, create a slow notification for a person by doing !<nick>  or !!<nick>. The first will @<nick> the person the following day at 09:00 Finnish time, the second will notify him one hour later. If the target is active in the thread, both kind of notifications will be cleared.")
 				}
-
-				var notifRegex = regexp.MustCompile(fmt.Sprintf(`(\%s+)([\wåäö]+)`, prefix))
 
 				for _, field := range notifRegex.FindAllStringSubmatch(event.Content.Text, -1) {
 					if len(field) < 2 {
