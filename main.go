@@ -231,26 +231,30 @@ func main() {
 						continue
 					}
 					possiblePrefix := field[1]
-					possibleUsername := strings.ToLower(field[2])
-					// Check first if the username is a known username, if not skip
-					if !users.Exists(possibleUsername) {
+					possibleTarget := strings.ToLower(field[2])
+					targets := []string{}
+					if users.Exists(possibleTarget) {
+						targets = append(targets, possibleTarget)
+					} else if roles.Exists(possibleTarget) {
+						targets = append(targets, roles[possibleTarget]...)
+					}
+					if len(targets) != 0 {
+						log.Printf("User or Role '%s' does not exists", possibleTarget)
 						continue
 					}
 					pinger := c.Users[event.UserID].Nick
 
-					notifyTime, notifyTag := createNotifyTimeAndTag(possiblePrefix, possibleUsername, location)
-					if !notifyTime.IsZero() {
-						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notifyTime)
-						if users.Exists(possibleUsername) {
+					for _, target := range targets {
+						notifyTime, notifyTag := createNotifyTimeAndTag(possiblePrefix, target, location)
+						if !notifyTime.IsZero() {
+							log.Printf("%s requested notification for %s at %v", pinger, target, notifyTime)
 							notification := NewNotification(notifyTime, pinger, event.ThreadID, event.Flow, event.ID)
-							notifications.Add(notification, possibleUsername, event.ThreadID)
+							notifications.Add(notification, target, event.ThreadID)
 							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
 							notifications.Save(notificationStorage)
 						} else {
-							log.Printf("User '%s' does not exists", possibleUsername)
+							log.Println("No time was set for notification")
 						}
-					} else {
-						log.Println("No time was set for notification")
 					}
 				}
 				for _, field := range roleRegex.FindAllStringSubmatch(event.Content, -1) {
@@ -334,26 +338,30 @@ func main() {
 						continue
 					}
 					possiblePrefix := field[1]
-					possibleUsername := strings.ToLower(field[2])
-					// Check first if the username is a known username, if not skip
-					if !users.Exists(possibleUsername) {
+					possibleTarget := strings.ToLower(field[2])
+					targets := []string{}
+					if users.Exists(possibleTarget) {
+						targets = append(targets, possibleTarget)
+					} else if roles.Exists(possibleTarget) {
+						targets = append(targets, roles[possibleTarget]...)
+					}
+					if len(targets) != 0 {
+						log.Printf("User or Role '%s' does not exists", possibleTarget)
 						continue
 					}
 					pinger := c.Users[event.UserID].Nick
 
-					notifyTime, notifyTag := createNotifyTimeAndTag(possiblePrefix, possibleUsername, location)
-					if !notifyTime.IsZero() {
-						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notifyTime)
-						if users.Exists(possibleUsername) {
+					for _, target := range targets {
+						notifyTime, notifyTag := createNotifyTimeAndTag(possiblePrefix, target, location)
+						if !notifyTime.IsZero() {
+							log.Printf("%s requested notification for %s at %v", pinger, target, notifyTime)
 							notification := NewNotification(notifyTime, pinger, messageID, event.Flow, event.ID)
-							notifications.Add(notification, possibleUsername, event.Flow)
+							notifications.Add(notification, target, event.Flow)
 							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
 							notifications.Save(notificationStorage)
 						} else {
-							log.Printf("User '%s' does not exists", possibleUsername)
+							log.Println("No time was set for notification")
 						}
-					} else {
-						log.Println("No time was set for notification")
 					}
 				}
 				for _, field := range roleRegex.FindAllStringSubmatch(event.Content.Text, -1) {
