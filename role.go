@@ -66,6 +66,15 @@ func (r Roles) Print() {
 	}
 }
 
+// Roles return the existing roles
+func (r Roles) Roles() string {
+	roles := []string{}
+	for role := range r {
+		roles = append(roles, role)
+	}
+	return fmt.Sprintf("%v", roles)
+}
+
 // Users returns the users in role
 func (r Roles) Users(role string) string {
 	if !r.Exists(role) {

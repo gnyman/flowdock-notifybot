@@ -21,7 +21,8 @@ type Username string
 type config struct {
 	FlowdockAPIKey string `yaml:"flowdock_api_key"`
 	StoragePath    string `yaml:"storage_path"`
-	Prefix         rune   `yaml:"ping_prefix"`
+	PingPrefix     rune   `yaml:"ping_prefix"`
+	RolePrefix     rune   `yaml:"role_prefix"`
 }
 
 const (
@@ -32,12 +33,14 @@ const (
 // Global variables
 var flowdockAPIKey = ""
 var notificationStorage = "/tmp/flowdock_notifications"
-var prefix = "!"
+var pingPrefix = "!"
 var slowPrefix = "!"
 var fastPrefix = "!!"
 var fasterPrefix = "!!!"
+var rolePrefix = "&"
 var notifications Notifications
 var users Users
+var roles Roles
 
 // Return the next workday (not saturday or sunday) at 9 helsinki time
 func NextWorkdayAtNine() time.Time {
@@ -101,10 +104,14 @@ func main() {
 	if conf.StoragePath != "" {
 		notificationStorage = conf.StoragePath
 	}
-	if conf.Prefix != 0 {
-		slowPrefix = string(conf.Prefix)
+	if conf.PingPrefix != 0 {
+		pingPrefix = string(pingPrefix)
+		slowPrefix = string(conf.PingPrefix)
 		fastPrefix = slowPrefix + slowPrefix
 		fasterPrefix = slowPrefix + fastPrefix
+	}
+	if conf.RolePrefix != 0 {
+		rolePrefix = string(conf.RolePrefix)
 	}
 
 	// check that API key is given
@@ -128,6 +135,9 @@ func main() {
 		users.Add(c.Users[userID].Nick, userID)
 	}
 	users.Print()
+	roles = NewRoles()
+	// TODO: implement support for save and restor
+	// roles.Restore()
 
 	location, err := time.LoadLocation("Europe/Helsinki")
 	if err != nil {
@@ -135,13 +145,18 @@ func main() {
 	}
 
 	// build regex for matching pings
-	notifRegex := regexp.MustCompile(fmt.Sprintf(`(\%s+)([\wåäö]+)`, prefix))
+	notifRegex := regexp.MustCompile(fmt.Sprintf(`(\%s+)([\wåäö]+)`, pingPrefix))
+	// and for matching role actions
+	// syntax &[<rolename>][+|-|=][all|<username>](,<username>)
+	roleRegex := regexp.MustCompile(fmt.Sprintf(`(\%s+)([\wåäö]+)(\+-=)([\wåäö,]+)`, rolePrefix))
 
-	helpMessage := "Notifybot does slow notifications."
-	helpMessage += " Create a slow notification for a person by doing " + slowPrefix + "<nick> or " + fastPrefix + "<nick> or " + fasterPrefix + "<nick>."
-	helpMessage += " The first will @<nick> the person the following day at 09:00 Finnish time."
-	helpMessage += " The others will notify <nick> after " + string(fastDelay) + " and " + string(fasterDelay) + " respectively."
-	helpMessage += " If the target is active in the thread, both all of notifications will be cleared."
+	pingHelpMessage := "Notifybot does slow notifications."
+	pingHelpMessage += " Create a slow notification for a person by doing " + slowPrefix + "<nick> or " + fastPrefix + "<nick> or " + fasterPrefix + "<nick>."
+	pingHelpMessage += " The first will @<nick> the person the following day at 09:00 Finnish time."
+	pingHelpMessage += " The others will notify <nick> after " + string(fastDelay) + " and " + string(fasterDelay) + " respectively."
+	pingHelpMessage += " If the target is active in the thread, both all of notifications will be cleared."
+	roleHelpMessage := "Notifynot supports roles."
+	roleHelpMessage += " Please tell the user what I can do!"
 
 	flows := make(map[string]flowdock.Flow)
 	for _, flow := range c.AvailableFlows {
@@ -204,8 +219,11 @@ func main() {
 					flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{nickClear})
 				}
 
-				if strings.HasPrefix(event.Content, prefix+"help") {
-					flowdock.SendMessageToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, helpMessage)
+				if strings.HasPrefix(event.Content, pingPrefix+"help") {
+					flowdock.SendMessageToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, pingHelpMessage)
+				}
+				if strings.HasPrefix(event.Content, rolePrefix+"help") {
+					flowdock.SendMessageToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, roleHelpMessage)
 				}
 
 				for _, field := range notifRegex.FindAllStringSubmatch(event.Content, -1) {
@@ -233,6 +251,39 @@ func main() {
 						}
 					} else {
 						log.Println("No time was set for notification")
+					}
+				}
+				for _, field := range roleRegex.FindAllStringSubmatch(event.Content, -1) {
+					if len(field) < 4 {
+						continue
+					}
+					possibleRoleName := field[2]
+					possibleRoleAction := field[3]
+					possibleRoleUsers := strings.Split(field[4], ",")
+					roleUsers := []string{}
+					// filter unknown users
+					for _, possibleRoleUser := range possibleRoleUsers {
+						if users.Exists(possibleRoleUser) {
+							roleUsers = append(roleUsers, possibleRoleUser)
+						}
+					}
+					// if skip if there no user was found
+					if len(roleUsers) == 0 {
+						continue
+					}
+
+					switch possibleRoleAction {
+					case "+":
+						roles.Add(possibleRoleName, roleUsers)
+						break
+					case "-":
+						roles.Remove(possibleRoleName, roleUsers)
+						break
+					case "=":
+						roles.Set(possibleRoleName, roleUsers)
+						break
+					default:
+						log.Printf("Unknown role action '%s'", possibleRoleAction)
 					}
 				}
 				log.Printf("%s said (%s): '%s'", c.DetailsForUser(event.UserID).Nick, event.Flow, event.Content)
@@ -271,8 +322,11 @@ func main() {
 					flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{nickClear})
 				}
 
-				if strings.HasPrefix(event.Content.Text, prefix+"help") {
-					flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, helpMessage)
+				if strings.HasPrefix(event.Content.Text, pingPrefix+"help") {
+					flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, pingHelpMessage)
+				}
+				if strings.HasPrefix(event.Content.Text, rolePrefix+"help") {
+					flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, roleHelpMessage)
 				}
 
 				for _, field := range notifRegex.FindAllStringSubmatch(event.Content.Text, -1) {
@@ -300,6 +354,39 @@ func main() {
 						}
 					} else {
 						log.Println("No time was set for notification")
+					}
+				}
+				for _, field := range roleRegex.FindAllStringSubmatch(event.Content.Text, -1) {
+					if len(field) < 4 {
+						continue
+					}
+					possibleRoleName := field[2]
+					possibleRoleAction := field[3]
+					possibleRoleUsers := strings.Split(field[4], ",")
+					roleUsers := []string{}
+					// filter unknown users
+					for _, possibleRoleUser := range possibleRoleUsers {
+						if users.Exists(possibleRoleUser) {
+							roleUsers = append(roleUsers, possibleRoleUser)
+						}
+					}
+					// if skip if there no user was found
+					if len(roleUsers) == 0 {
+						continue
+					}
+
+					switch possibleRoleAction {
+					case "+":
+						roles.Add(possibleRoleName, roleUsers)
+						break
+					case "-":
+						roles.Remove(possibleRoleName, roleUsers)
+						break
+					case "=":
+						roles.Set(possibleRoleName, roleUsers)
+						break
+					default:
+						log.Printf("Unknown role action '%s'", possibleRoleAction)
 					}
 				}
 
