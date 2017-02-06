@@ -155,8 +155,13 @@ func main() {
 	pingHelpMessage += " The first will @<nick> the person the following day at 09:00 Finnish time."
 	pingHelpMessage += " The others will notify <nick> after " + string(fastDelay) + " and " + string(fasterDelay) + " respectively."
 	pingHelpMessage += " If the target is active in the thread, both all of notifications will be cleared."
-	roleHelpMessage := "Notifynot supports roles."
-	roleHelpMessage += " Please tell the user what I can do!"
+	roleHelpMessage := "Notifybot supports roles."
+	roleHelpMessage += " Add a person to a roly by doing " + rolePrefix + "<role>+<nick>. The role is created on the fly if it does not exists."
+	roleHelpMessage += " Remove a person from a roly by doing " + rolePrefix + "<role>-<nick>."
+	roleHelpMessage += " Several persons can be added or removed by doing e.g " + rolePrefix + "<role>+<nick1>,<nick2>."
+	roleHelpMessage += " Replace persons in a role by doing " + rolePrefix + "<role>=<nick1>,<nick2>."
+	roleHelpMessage += " List existing roles by doing " + rolePrefix + "list."
+	roleHelpMessage += " List existing users in a role by doing " + rolePrefix + "<role>=list."
 
 	flows := make(map[string]flowdock.Flow)
 	for _, flow := range c.AvailableFlows {
