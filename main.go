@@ -230,6 +230,9 @@ func main() {
 				if strings.HasPrefix(event.Content, rolePrefix+"help") {
 					flowdock.SendMessageToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, roleHelpMessage)
 				}
+				if strings.HasPrefix(event.Content, rolePrefix+"list") {
+					flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, roles.Roles())
+				}
 
 				for _, field := range notifRegex.FindAllStringSubmatch(event.Content, -1) {
 					if len(field) < 2 {
@@ -270,6 +273,11 @@ func main() {
 					possibleRoleAction := field[3]
 					possibleRoleUsers := strings.Split(field[4], ",")
 					roleUsers := []string{}
+					// list users in role if requested
+					if roles.Exists(possibleRoleName) && len(possibleRoleUsers) == 1 && possibleRoleUsers[0] == "list" && possibleRoleAction == "=" {
+						flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, roles.Users(possibleRoleName))
+						continue
+					}
 					// filter unknown users
 					for _, possibleRoleUser := range possibleRoleUsers {
 						if users.Exists(possibleRoleUser) {
@@ -337,6 +345,9 @@ func main() {
 				if strings.HasPrefix(event.Content.Text, rolePrefix+"help") {
 					flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, roleHelpMessage)
 				}
+				if strings.HasPrefix(event.Content.Text, rolePrefix+"list") {
+					flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, roles.Roles())
+				}
 
 				for _, field := range notifRegex.FindAllStringSubmatch(event.Content.Text, -1) {
 					if len(field) < 2 {
@@ -377,6 +388,11 @@ func main() {
 					possibleRoleAction := field[3]
 					possibleRoleUsers := strings.Split(field[4], ",")
 					roleUsers := []string{}
+					// list users in role if requested
+					if roles.Exists(possibleRoleName) && len(possibleRoleUsers) == 1 && possibleRoleUsers[0] == "list" && possibleRoleAction == "=" {
+						flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, roles.Users(possibleRoleName))
+						continue
+					}
 					// filter unknown users
 					for _, possibleRoleUser := range possibleRoleUsers {
 						if users.Exists(possibleRoleUser) {
