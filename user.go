@@ -29,6 +29,6 @@ func (u Users) Add(nick, id string) {
 // Print prints all users
 func (u Users) Print() {
 	for nick, id := range u {
-		fmt.Println("%s:%s", nick, id)
+		fmt.Printf("%s:%s\n", nick, id)
 	}
 }
