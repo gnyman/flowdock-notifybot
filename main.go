@@ -33,6 +33,7 @@ const (
 // Global variables
 var flowdockAPIKey = ""
 var notificationStorage = "/tmp/flowdock_notifications"
+var roleStorage = "/tmp/flowdock_roles"
 var pingPrefix = "!"
 var slowPrefix = "!"
 var fastPrefix = "!!"
@@ -136,8 +137,8 @@ func main() {
 	}
 	users.Print()
 	roles = NewRoles()
-	// TODO: implement support for save and restor
-	// roles.Restore()
+	restored, err = roles.Restore(roleStorage)
+	log.Printf("Restored %d roles from file '%s'", restored, roleStorage)
 
 	location, err := time.LoadLocation("Europe/Helsinki")
 	if err != nil {
@@ -292,12 +293,15 @@ func main() {
 					switch possibleRoleAction {
 					case "+":
 						roles.Add(possibleRoleName, roleUsers)
+						roles.Save(roleStorage)
 						break
 					case "-":
 						roles.Remove(possibleRoleName, roleUsers)
+						roles.Save(roleStorage)
 						break
 					case "=":
 						roles.Set(possibleRoleName, roleUsers)
+						roles.Save(roleStorage)
 						break
 					default:
 						log.Printf("Unknown role action '%s'", possibleRoleAction)
@@ -407,12 +411,15 @@ func main() {
 					switch possibleRoleAction {
 					case "+":
 						roles.Add(possibleRoleName, roleUsers)
+						roles.Save(roleStorage)
 						break
 					case "-":
 						roles.Remove(possibleRoleName, roleUsers)
+						roles.Save(roleStorage)
 						break
 					case "=":
 						roles.Set(possibleRoleName, roleUsers)
+						roles.Save(roleStorage)
 						break
 					default:
 						log.Printf("Unknown role action '%s'", possibleRoleAction)

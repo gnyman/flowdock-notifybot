@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -11,6 +15,38 @@ type Roles map[string][]string
 // NewRoles returns an empty map of roles
 func NewRoles() Roles {
 	return make(map[string][]string)
+}
+
+// Restore restores saved roles from file
+func (r Roles) Restore(file string) (int, error) {
+	if _, err := os.Stat(file); err == nil {
+		rawData, err := ioutil.ReadFile(file)
+		if err != nil {
+			return 0, fmt.Errorf("Error could not restore roles because could not read file :-(")
+		}
+		buffer := bytes.NewBuffer(rawData)
+		dec := gob.NewDecoder(buffer)
+
+		err = dec.Decode(&r)
+		if err != nil {
+			return 0, fmt.Errorf("Error could not decode %v", dec)
+		}
+		return len(r), nil
+	}
+	return 0, nil
+}
+
+// Save saves roles to file
+func (r Roles) Save(file string) error {
+	var buffer bytes.Buffer
+	enc := gob.NewEncoder(&buffer)
+	err := enc.Encode(r)
+	if err != nil {
+		return fmt.Errorf("Error could not save the roles")
+	}
+
+	ioutil.WriteFile(file, buffer.Bytes(), 0600)
+	return nil
 }
 
 // Exists returns true the role exits
