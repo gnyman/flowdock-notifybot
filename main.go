@@ -45,15 +45,18 @@ func NextWorkdayAtNine() time.Time {
 	if err != nil {
 		log.Panic("Could not load timezone info")
 	}
-	now := time.Now().Round(time.Hour).In(location)
-	for {
-		if now.Weekday() == time.Saturday ||
-			now.Weekday() == time.Sunday ||
-			now.Hour() != 9 {
-			now = now.Add(1 * time.Hour)
-		} else {
-			break
-		}
+	now := time.Now().In(location).Truncate(time.Hour)
+	hoursFromNine := time.Duration(9 - now.Hour())
+	if hoursFromNine > 0 {
+		now = now.Add(hoursFromNine * time.Hour)
+	} else {
+		now = now.Add((24 + hoursFromNine) * time.Hour)
+	}
+	switch now.Weekday() {
+	case time.Saturday:
+		now = now.AddDate(0, 0, 2)
+	case time.Sunday:
+		now = now.AddDate(0, 0, 1)
 	}
 	return now
 }
