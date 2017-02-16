@@ -12,7 +12,7 @@ import (
 
 	"github.com/gnyman/flowdock"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 type ThreadID int64
