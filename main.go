@@ -1,34 +1,43 @@
 package main
 
 import (
-	"bytes"
-	"encoding/gob"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gnyman/flowdock"
+
+	"gopkg.in/yaml.v2"
 )
 
 type ThreadID int64
 type Username string
 
-type Notification struct {
-	Timestamp time.Time
-	Thread    string
-	Flow      string
-	Pinger    string
-	MessageID int64
+type config struct {
+	FlowdockAPIKey string `yaml:"flowdock_api_key"`
+	StoragePath    string `yaml:"storage_path"`
+	Prefix         rune   `yaml:"ping_prefix"`
 }
 
+const (
+	fastDelay   = 2 * time.Hour
+	fasterDelay = 25 * time.Minute
+)
+
 // Global variables
-var notifications map[string]map[string]Notification
-var usernames map[string]string
+var flowdockAPIKey = ""
+var notificationStorage = "/tmp/flowdock_notifications"
+var prefix = "!"
+var slowPrefix = "!"
+var fastPrefix = "!!"
+var fasterPrefix = "!!!"
+var notifications Notifications
+var users Users
 
 // Return the next workday (not saturday or sunday) at 9 helsinki time
 func NextWorkdayAtNine() time.Time {
@@ -49,76 +58,90 @@ func NextWorkdayAtNine() time.Time {
 	return now
 }
 
-func restoreNotifications(path string) map[string]map[string]Notification {
-	if _, err := os.Stat(path); err == nil {
-		rawData, err := ioutil.ReadFile(path)
-		if err != nil {
-			log.Println("Error could not restore notifications because could not read file :-(")
-			goto err
-		}
-		buffer := bytes.NewBuffer(rawData)
-		dec := gob.NewDecoder(buffer)
+// createNotifyTimeAndTag returns the time when the notification shall be sent
+// and the tag used
+func createNotifyTimeAndTag(prefix, username string, location *time.Location) (time.Time, string) {
+	var t time.Time
+	var tag string
 
-		var decodedData map[string]map[string]Notification
-		err = dec.Decode(&decodedData)
-		if err != nil {
-			log.Printf("Error could not decode %v", dec)
-			goto err
-		}
-		log.Printf("Restored notifications %v", decodedData)
-		return decodedData
+	if prefix == fastPrefix {
+		t = time.Now().In(location).Add(fastDelay)
+		tag = fmt.Sprintf("notify-short-%v", username)
 	}
-	log.Println("No notification storage found, not restoring anything")
-err:
-	return make(map[string]map[string]Notification)
-}
-
-func saveNotifications(notifs map[string]map[string]Notification, path string) error {
-	var rawData bytes.Buffer
-	enc := gob.NewEncoder(&rawData)
-	err := enc.Encode(notifs)
-	if err != nil {
-		log.Println("Error could not save the notifications")
+	if prefix == slowPrefix {
+		t = NextWorkdayAtNine()
+		tag = fmt.Sprintf("notify-long-%v", username)
+	}
+	if prefix == fasterPrefix {
+		t = time.Now().In(location).Add(fasterDelay)
+		tag = fmt.Sprintf("notify-shorter-%v", username)
 	}
 
-	ioutil.WriteFile(path, rawData.Bytes(), 0600)
-	log.Println("Updated notification cache...")
-	return nil
-}
-
-func addNotification(notifications map[string]map[string]Notification, atTime time.Time, targetUsername string, fromUsername string, threadID string, flowID string, messageID int64) error {
-	fmt.Println(notifications)
-	if _, exists := usernames[targetUsername]; !exists {
-		return fmt.Errorf("We do not know that user")
-	}
-	notifications[usernames[targetUsername]][threadID] = Notification{atTime, threadID, flowID, fromUsername, messageID}
-	return nil
+	return t, tag
 }
 
 func main() {
-	notifications = restoreNotifications(notificationStorage)
+	var configFile string
+	flag.StringVar(&configFile, "config", "config.yaml", "Config file to read settings from")
+	flag.Parse()
+
+	// Read settings from config file
+	var conf config
+	content, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		log.Fatalln("Failed to open config file:", err)
+	}
+	err = yaml.Unmarshal(content, &conf)
+	if err != nil {
+		log.Fatalln("Failed to parse config file:", err)
+	}
+
+	// override defaults
+	flowdockAPIKey = conf.FlowdockAPIKey
+	if conf.StoragePath != "" {
+		notificationStorage = conf.StoragePath
+	}
+	if conf.Prefix != 0 {
+		slowPrefix = string(conf.Prefix)
+		fastPrefix = slowPrefix + slowPrefix
+		fasterPrefix = slowPrefix + fastPrefix
+	}
+
+	// check that API key is given
+	if flowdockAPIKey == "" {
+		log.Fatal("An API key for Flowdock must be specified")
+	}
+
+	notifications := NewNotifications()
+	restored, err := notifications.Restore(notificationStorage)
+	log.Printf("Restored %d notifations from file '%s'", restored, notificationStorage)
 
 	events := make(chan flowdock.Event)
 	c := flowdock.NewClient(flowdockAPIKey)
-	err := c.Connect(nil, events)
+	err = c.Connect(nil, events)
 	if err != nil {
 		panic(err)
 	}
 
-	usernames = make(map[string]string)
-
+	users = NewUsers()
 	for userID, _ := range c.Users {
-		usernames[strings.ToLower(c.Users[userID].Nick)] = userID
-		if _, ok := notifications[userID]; !ok {
-			notifications[userID] = make(map[string]Notification)
-		}
+		users.Add(c.Users[userID].Nick, userID)
 	}
-	log.Println(usernames)
+	users.Print()
 
 	location, err := time.LoadLocation("Europe/Helsinki")
 	if err != nil {
 		log.Panic("Could not load timeszone info")
 	}
+
+	// build regex for matching pings
+	notifRegex := regexp.MustCompile(fmt.Sprintf(`(\%s+)([\wåäö]+)`, prefix))
+
+	helpMessage := "Notifybot does slow notifications."
+	helpMessage += " Create a slow notification for a person by doing " + slowPrefix + "<nick> or " + fastPrefix + "<nick> or " + fasterPrefix + "<nick>."
+	helpMessage += " The first will @<nick> the person the following day at 09:00 Finnish time."
+	helpMessage += " The others will notify <nick> after " + string(fastDelay) + " and " + string(fasterDelay) + " respectively."
+	helpMessage += " If the target is active in the thread, both all of notifications will be cleared."
 
 	flows := make(map[string]flowdock.Flow)
 	for _, flow := range c.AvailableFlows {
@@ -148,8 +171,8 @@ func main() {
 								log.Panic(err)
 							}
 							log.Printf("%v\n", string(body))
-							delete(notifications[userID], threadID)
-							saveNotifications(notifications, notificationStorage)
+							notifications.Delete(userID, threadID)
+							notifications.Save(notificationStorage)
 						}
 					}
 				}
@@ -176,16 +199,14 @@ func main() {
 
 				if _, found := notifications[event.UserID][event.ThreadID]; found {
 					log.Printf("User %v was active in thread %v for which he had a notificating pending, clearing notification", event.UserID, event.ThreadID)
-					delete(notifications[event.UserID], event.ThreadID)
+					notifications.Delete(event.UserID, event.ThreadID)
 					nickClear := fmt.Sprintf("cleared-%s", c.Users[event.UserID].Nick)
 					flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{nickClear})
 				}
 
-				if strings.HasPrefix(event.Content, "!help") {
-					flowdock.SendMessageToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, "Notifybot does slow notifications, create a slow notification for a person by doing !<nick>  or !!<nick>. The first will @<nick> the person the following day at 09:00 Finnish time, the second will notify him one hour later. If the target is active in the thread, both kind of notifications will be cleared.")
+				if strings.HasPrefix(event.Content, prefix+"help") {
+					flowdock.SendMessageToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, helpMessage)
 				}
-
-				var notifRegex = regexp.MustCompile(fmt.Sprintf(`(\%s+)([\wåäö]+)`, prefix))
 
 				for _, field := range notifRegex.FindAllStringSubmatch(event.Content, -1) {
 					if len(field) < 2 {
@@ -194,33 +215,22 @@ func main() {
 					possiblePrefix := field[1]
 					possibleUsername := strings.ToLower(field[2])
 					// Check first if the username is a known username, if not skip
-					if _, ok := usernames[possibleUsername]; !ok {
+					if !users.Exists(possibleUsername) {
 						continue
 					}
 					pinger := c.Users[event.UserID].Nick
 
-					var notificationTime time.Time
-					var notifyTag string
-					if possiblePrefix == fastPrefix {
-						notificationTime = time.Now().In(location).Add(fastDelay)
-						notifyTag = fmt.Sprintf("notify-short-%v", possibleUsername)
-					}
-					if possiblePrefix == slowPrefix {
-						notificationTime = NextWorkdayAtNine()
-						notifyTag = fmt.Sprintf("notify-long-%v", possibleUsername)
-					}
-					if possiblePrefix == fasterPrefix {
-						notificationTime = time.Now().In(location).Add(fasterDelay)
-						notifyTag = fmt.Sprintf("notify-shorter-%v", possibleUsername)
-					}
-					if !notificationTime.IsZero() {
-						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notificationTime)
-						err = addNotification(notifications, notificationTime, possibleUsername, pinger, event.ThreadID, event.Flow, event.ID)
-						if err != nil {
-							log.Printf("Error adding notification...")
+					notifyTime, notifyTag := createNotifyTimeAndTag(possiblePrefix, possibleUsername, location)
+					if !notifyTime.IsZero() {
+						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notifyTime)
+						if users.Exists(possibleUsername) {
+							notification := NewNotification(notifyTime, pinger, event.ThreadID, event.Flow, event.ID)
+							notifications.Add(notification, possibleUsername, event.ThreadID)
+							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
+							notifications.Save(notificationStorage)
+						} else {
+							log.Printf("User '%s' does not exists", possibleUsername)
 						}
-						flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
-						saveNotifications(notifications, notificationStorage)
 					} else {
 						log.Println("No time was set for notification")
 					}
@@ -256,16 +266,14 @@ func main() {
 
 				if _, found := notifications[event.UserID][messageID]; found {
 					log.Printf("User %v was active in comment thread %v for which he had a notificating pending, clearing notification", event.UserID, messageID)
-					delete(notifications[event.UserID], messageID)
+					notifications.Delete(event.UserID, messageID)
 					nickClear := fmt.Sprintf("cleared-%s", c.Users[event.UserID].Nick)
 					flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{nickClear})
 				}
 
-				if strings.HasPrefix(event.Content.Text, "!help") {
-					flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, "Notifybot does slow notifications, create a slow notification for a person by doing !<nick>  or !!<nick>. The first will @<nick> the person the following day at 09:00 Finnish time, the second will notify him one hour later. If the target is active in the thread, both kind of notifications will be cleared.")
+				if strings.HasPrefix(event.Content.Text, prefix+"help") {
+					flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, helpMessage)
 				}
-
-				var notifRegex = regexp.MustCompile(fmt.Sprintf(`(\%s+)([\wåäö]+)`, prefix))
 
 				for _, field := range notifRegex.FindAllStringSubmatch(event.Content.Text, -1) {
 					if len(field) < 2 {
@@ -274,33 +282,22 @@ func main() {
 					possiblePrefix := field[1]
 					possibleUsername := strings.ToLower(field[2])
 					// Check first if the username is a known username, if not skip
-					if _, ok := usernames[possibleUsername]; !ok {
+					if !users.Exists(possibleUsername) {
 						continue
 					}
 					pinger := c.Users[event.UserID].Nick
 
-					var notificationTime time.Time
-					var notifyTag string
-					if possiblePrefix == fastPrefix {
-						notificationTime = time.Now().In(location).Add(fastDelay)
-						notifyTag = fmt.Sprintf("notify-short-%v", possibleUsername)
-					}
-					if possiblePrefix == slowPrefix {
-						notificationTime = NextWorkdayAtNine()
-						notifyTag = fmt.Sprintf("notify-long-%v", possibleUsername)
-					}
-					if possiblePrefix == fasterPrefix {
-						notificationTime = time.Now().In(location).Add(fasterDelay)
-						notifyTag = fmt.Sprintf("notify-shorter-%v", possibleUsername)
-					}
-					if !notificationTime.IsZero() {
-						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notificationTime)
-						err = addNotification(notifications, notificationTime, possibleUsername, pinger, messageID, event.Flow, event.ID)
-						if err != nil {
-							log.Printf("Error adding notification...")
+					notifyTime, notifyTag := createNotifyTimeAndTag(possiblePrefix, possibleUsername, location)
+					if !notifyTime.IsZero() {
+						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notifyTime)
+						if users.Exists(possibleUsername) {
+							notification := NewNotification(notifyTime, pinger, messageID, event.Flow, event.ID)
+							notifications.Add(notification, possibleUsername, event.Flow)
+							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
+							notifications.Save(notificationStorage)
+						} else {
+							log.Printf("User '%s' does not exists", possibleUsername)
 						}
-						flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
-						saveNotifications(notifications, notificationStorage)
 					} else {
 						log.Println("No time was set for notification")
 					}
@@ -327,10 +324,7 @@ func main() {
 						flows[flow.ID] = flow
 					}
 					for userID, _ := range c.Users {
-						usernames[strings.ToLower(c.Users[userID].Nick)] = userID
-						if _, ok := notifications[userID]; !ok {
-							notifications[userID] = make(map[string]Notification)
-						}
+						users.Add(c.Users[userID].Nick, userID)
 					}
 				}
 			case nil:

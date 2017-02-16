@@ -1,0 +1,20 @@
+{
+	"ImportPath": "github.com/jabbors/flowdock-notifybot",
+	"GoVersion": "go1.7",
+	"GodepVersion": "v75",
+	"Deps": [
+		{
+			"ImportPath": "github.com/gnyman/flowdock",
+			"Rev": "992d02e19213364d950cb50d7718ae1591f20958"
+		},
+		{
+			"ImportPath": "github.com/njern/httpstream",
+			"Comment": "go.weekly.2011-12-06-50-g3bcbcb8",
+			"Rev": "3bcbcb879a9062a9140b1742d7729c01c3c997a9"
+		},
+		{
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "f7716cbe52baa25d2e9b0d0da546fcf909fc16b4"
+		}
+	]
+}
