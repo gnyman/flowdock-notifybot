@@ -25,7 +25,7 @@ type config struct {
 }
 
 const (
-	fastDelay   = 2 * time.Hour
+	fastDelay   = 1 * time.Hour
 	fasterDelay = 25 * time.Minute
 )
 
