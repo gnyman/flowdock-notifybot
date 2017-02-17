@@ -225,7 +225,7 @@ func main() {
 						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notifyTime)
 						if users.Exists(possibleUsername) {
 							notification := NewNotification(notifyTime, pinger, event.ThreadID, event.Flow, event.ID)
-							notifications.Add(notification, possibleUsername, event.ThreadID)
+							notifications.Add(notification, users[possibleUsername], event.ThreadID)
 							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
 							notifications.Save(notificationStorage)
 						} else {
@@ -292,7 +292,7 @@ func main() {
 						log.Printf("%s requested notification for %s at %v", pinger, possibleUsername, notifyTime)
 						if users.Exists(possibleUsername) {
 							notification := NewNotification(notifyTime, pinger, messageID, event.Flow, event.ID)
-							notifications.Add(notification, possibleUsername, event.Flow)
+							notifications.Add(notification, users[possibleUsername], event.Flow)
 							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
 							notifications.Save(notificationStorage)
 						} else {
