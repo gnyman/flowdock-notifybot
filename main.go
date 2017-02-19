@@ -12,7 +12,7 @@ import (
 
 	"github.com/gnyman/flowdock"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 type ThreadID int64
@@ -26,7 +26,7 @@ type config struct {
 }
 
 const (
-	fastDelay   = 2 * time.Hour
+	fastDelay   = 1 * time.Hour
 	fasterDelay = 25 * time.Minute
 )
 
@@ -49,15 +49,18 @@ func NextWorkdayAtNine() time.Time {
 	if err != nil {
 		log.Panic("Could not load timezone info")
 	}
-	now := time.Now().Round(time.Hour).In(location)
-	for {
-		if now.Weekday() == time.Saturday ||
-			now.Weekday() == time.Sunday ||
-			now.Hour() != 9 {
-			now = now.Add(1 * time.Hour)
-		} else {
-			break
-		}
+	now := time.Now().In(location).Truncate(time.Hour)
+	hoursFromNine := time.Duration(9 - now.Hour())
+	if hoursFromNine > 0 {
+		now = now.Add(hoursFromNine * time.Hour)
+	} else {
+		now = now.Add((24 + hoursFromNine) * time.Hour)
+	}
+	switch now.Weekday() {
+	case time.Saturday:
+		now = now.AddDate(0, 0, 2)
+	case time.Sunday:
+		now = now.AddDate(0, 0, 1)
 	}
 	return now
 }
@@ -258,7 +261,7 @@ func main() {
 						if !notifyTime.IsZero() {
 							log.Printf("%s requested notification for %s at %v", pinger, target, notifyTime)
 							notification := NewNotification(notifyTime, pinger, event.ThreadID, event.Flow, event.ID)
-							notifications.Add(notification, target, event.ThreadID)
+							notifications.Add(notification, users[target], event.ThreadID)
 							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
 							notifications.Save(notificationStorage)
 						} else {
@@ -376,7 +379,7 @@ func main() {
 						if !notifyTime.IsZero() {
 							log.Printf("%s requested notification for %s at %v", pinger, target, notifyTime)
 							notification := NewNotification(notifyTime, pinger, messageID, event.Flow, event.ID)
-							notifications.Add(notification, target, event.Flow)
+							notifications.Add(notification, users[target], event.Flow)
 							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{notifyTag})
 							notifications.Save(notificationStorage)
 						} else {

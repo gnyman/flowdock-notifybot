@@ -66,7 +66,7 @@ func TestNotificationsStoreAndRestore(t *testing.T) {
 		t.Errorf("Restore: wanted %d, got %d", 3, restored)
 	}
 	if !reflect.DeepEqual(notifications, restoredNotifications) {
-		t.Errorf("wanted %v", notifications)
-		t.Errorf("got %v", restoredNotifications)
+		t.Errorf("wanted %+v", notifications)
+		t.Errorf("got %+v", restoredNotifications)
 	}
 }
