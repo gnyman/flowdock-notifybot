@@ -70,3 +70,61 @@ func TestRolesStoreAndRestore(t *testing.T) {
 		t.Errorf("got %v", restoredRoles)
 	}
 }
+
+func TestTags(t *testing.T) {
+	roles := NewRoles()
+
+	var msg string
+
+	// add
+	msg = roles.AddNotifyTag("foobar", []string{"foo", "bar"})
+	if msg != "role foobar added with users: [foo bar]" {
+		t.Errorf("add tag failed, got: '%s'", msg)
+	}
+	roles.Add("foobar", []string{"foo", "bar"})
+	msg = roles.AddNotifyTag("foobar", []string{"foobar"})
+	if msg != "users [foobar] added to role foobar" {
+		t.Errorf("add tag failed, got: '%s'", msg)
+	}
+	roles.Add("foobar", []string{"foobar"})
+	msg = roles.AddNotifyTag("foobar", []string{"foobar"})
+	if msg != "" {
+		t.Errorf("add tag failed, got: '%s'", msg)
+	}
+
+	// remove
+	msg = roles.RemoveNotifyTag("fozbaz", []string{"foobar"})
+	if msg != "" {
+		t.Errorf("remove tag failed, got: '%s'", msg)
+	}
+	msg = roles.RemoveNotifyTag("foobar", []string{"fozbaz"})
+	if msg != "" {
+		t.Errorf("remove tag failed, got: '%s'", msg)
+	}
+	msg = roles.RemoveNotifyTag("foobar", []string{"foo", "bar"})
+	if msg != "users [foo bar] removed from role foobar" {
+		t.Errorf("remove tag failed, got: '%s'", msg)
+	}
+
+	// set
+	msg = roles.SetNotifyTag("foo", []string{"bar", "foo"})
+	if msg != "role foo added with users: [bar foo]" {
+		t.Errorf("set tag failed, got: '%s'", msg)
+	}
+	roles.Set("foo", []string{"bar", "foo"})
+	msg = roles.SetNotifyTag("foobar", []string{"foo", "bar"})
+	if msg != "users [foo bar] set to role foobar" {
+		t.Errorf("set tag failed, got: '%s'", msg)
+	}
+	roles.Set("foobar", []string{"foo", "bar"})
+
+	// delete
+	msg = roles.DeleteNotifyTag("fozbaz")
+	if msg != "" {
+		t.Errorf("delete tag failed, got: '%s'", msg)
+	}
+	msg = roles.DeleteNotifyTag("foo")
+	if msg != "role foo deleted" {
+		t.Errorf("delete tag failed, got: '%s'", msg)
+	}
+}

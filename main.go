@@ -295,23 +295,39 @@ func main() {
 
 					switch possibleRoleAction {
 					case "+":
+						roleNotifyTag := roles.AddNotifyTag(possibleRoleName, roleUsers)
 						roles.Add(possibleRoleName, roleUsers)
 						roles.Save(roleStorage)
+						if roleNotifyTag != "" {
+							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roleNotifyTag})
+						}
 						break
 					case "-":
 						for _, roleUser := range roleUsers {
 							if roleUser == "delete" {
+								roleNotifyTag := roles.DeleteNotifyTag(possibleRoleName)
 								roles.Delete(possibleRoleName)
 								roles.Save(roleStorage)
+								if roleNotifyTag != "" {
+									flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roleNotifyTag})
+								}
 								continue
 							}
 						}
+						roleNotifyTag := roles.RemoveNotifyTag(possibleRoleName, roleUsers)
 						roles.Remove(possibleRoleName, roleUsers)
 						roles.Save(roleStorage)
+						if roleNotifyTag != "" {
+							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roleNotifyTag})
+						}
 						break
 					case "=":
+						roleNotifyTag := roles.SetNotifyTag(possibleRoleName, roleUsers)
 						roles.Set(possibleRoleName, roleUsers)
 						roles.Save(roleStorage)
+						if roleNotifyTag != "" {
+							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roleNotifyTag})
+						}
 						break
 					default:
 						log.Printf("Unknown role action '%s'", possibleRoleAction)
@@ -420,23 +436,39 @@ func main() {
 
 					switch possibleRoleAction {
 					case "+":
+						roleNotifyTag := roles.AddNotifyTag(possibleRoleName, roleUsers)
 						roles.Add(possibleRoleName, roleUsers)
 						roles.Save(roleStorage)
+						if roleNotifyTag != "" {
+							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roleNotifyTag})
+						}
 						break
 					case "-":
 						for _, roleUser := range roleUsers {
 							if roleUser == "delete" {
+								roleNotifyTag := roles.DeleteNotifyTag(possibleRoleName)
 								roles.Delete(possibleRoleName)
 								roles.Save(roleStorage)
+								if roleNotifyTag != "" {
+									flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roleNotifyTag})
+								}
 								continue
 							}
 						}
+						roleNotifyTag := roles.RemoveNotifyTag(possibleRoleName, roleUsers)
 						roles.Remove(possibleRoleName, roleUsers)
 						roles.Save(roleStorage)
+						if roleNotifyTag != "" {
+							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roleNotifyTag})
+						}
 						break
 					case "=":
+						roleNotifyTag := roles.SetNotifyTag(possibleRoleName, roleUsers)
 						roles.Set(possibleRoleName, roleUsers)
 						roles.Save(roleStorage)
+						if roleNotifyTag != "" {
+							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roleNotifyTag})
+						}
 						break
 					default:
 						log.Printf("Unknown role action '%s'", possibleRoleAction)

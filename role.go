@@ -124,3 +124,67 @@ func (r Roles) Users(role string) string {
 
 	return fmt.Sprintf("%v", r[role])
 }
+
+// AddNotifyTag returns a message of what will be added
+func (r Roles) AddNotifyTag(role string, users []string) string {
+	if !r.Exists(role) {
+		return fmt.Sprintf("role %s added with users: %s", role, users)
+	}
+	existingUsers := make(map[string]bool)
+	for _, existingUser := range r[role] {
+		existingUsers[existingUser] = true
+	}
+	newUsers := []string{}
+	for _, newUser := range users {
+		if _, ok := existingUsers[newUser]; ok {
+			continue
+		}
+		newUsers = append(newUsers, newUser)
+	}
+
+	if len(newUsers) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("users %s added to role %s", newUsers, role)
+}
+
+// RemoveNotifyTag returns a message of what will be removed
+func (r Roles) RemoveNotifyTag(role string, users []string) string {
+	if !r.Exists(role) {
+		return ""
+	}
+
+	existingUsers := make(map[string]bool)
+	for _, existingUser := range r[role] {
+		existingUsers[existingUser] = true
+	}
+	oldUsers := []string{}
+	for _, oldUser := range users {
+		if _, ok := existingUsers[oldUser]; ok {
+			oldUsers = append(oldUsers, oldUser)
+		}
+	}
+
+	if len(oldUsers) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("users %s removed from role %s", oldUsers, role)
+}
+
+// SetNotifyTag returns a message of what will be changed
+func (r Roles) SetNotifyTag(role string, users []string) string {
+	if !r.Exists(role) {
+		return fmt.Sprintf("role %s added with users: %s", role, users)
+	}
+
+	return fmt.Sprintf("users %s set to role %s", users, role)
+}
+
+// DeleteNotifyTag returns a message of what will be deleted
+func (r Roles) DeleteNotifyTag(role string) string {
+	if !r.Exists(role) {
+		return ""
+	}
+
+	return fmt.Sprintf("role %s deleted", role)
+}
