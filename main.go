@@ -299,6 +299,13 @@ func main() {
 						roles.Save(roleStorage)
 						break
 					case "-":
+						for _, roleUser := range roleUsers {
+							if roleUser == "delete" {
+								roles.Delete(possibleRoleName)
+								roles.Save(roleStorage)
+								continue
+							}
+						}
 						roles.Remove(possibleRoleName, roleUsers)
 						roles.Save(roleStorage)
 						break
@@ -417,6 +424,13 @@ func main() {
 						roles.Save(roleStorage)
 						break
 					case "-":
+						for _, roleUser := range roleUsers {
+							if roleUser == "delete" {
+								roles.Delete(possibleRoleName)
+								roles.Save(roleStorage)
+								continue
+							}
+						}
 						roles.Remove(possibleRoleName, roleUsers)
 						roles.Save(roleStorage)
 						break

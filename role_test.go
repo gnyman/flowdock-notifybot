@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestAddRemoveSet(t *testing.T) {
+func TestAddRemoveSetDelete(t *testing.T) {
 
 	roles := NewRoles()
 
@@ -34,6 +34,12 @@ func TestAddRemoveSet(t *testing.T) {
 	roles.Set("bar", []string{"foo", "bar"})
 	if len(roles) != 2 || len(roles["foo"]) != 2 || len(roles["bar"]) != 2 {
 		t.Errorf("Set failed")
+	}
+
+	// delete
+	roles.Delete("bar")
+	if len(roles) != 1 || len(roles["foo"]) != 2 {
+		t.Errorf("Delete failed")
 	}
 }
 

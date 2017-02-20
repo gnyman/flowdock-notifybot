@@ -57,6 +57,11 @@ func (r Roles) Exists(role string) bool {
 	return false
 }
 
+// Delete deletes role if it exists
+func (r Roles) Delete(role string) {
+	delete(r, role)
+}
+
 // Add adds users to a role
 func (r Roles) Add(role string, users []string) {
 	if r.Exists(role) {
