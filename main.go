@@ -142,6 +142,7 @@ func main() {
 	roles = NewRoles()
 	restored, err = roles.Restore(roleStorage)
 	log.Printf("Restored %d roles from file '%s'", restored, roleStorage)
+	roles.Print()
 
 	location, err := time.LoadLocation("Europe/Helsinki")
 	if err != nil {
@@ -152,7 +153,7 @@ func main() {
 	notifRegex := regexp.MustCompile(fmt.Sprintf(`(\%s+)([\wåäö]+)`, pingPrefix))
 	// and for matching role actions
 	// syntax &[<rolename>][+|-|=][all|<username>](,<username>)
-	roleRegex := regexp.MustCompile(fmt.Sprintf(`(\%s+)([\wåäö]+)(\+-=)([\wåäö,]+)`, rolePrefix))
+	roleRegex := regexp.MustCompile(fmt.Sprintf(`(\%s)([\wåäö]+)([+-=])([\wåäö,]+)`, rolePrefix))
 
 	pingHelpMessage := "Notifybot does slow notifications."
 	pingHelpMessage += " Create a slow notification for a person by doing " + slowPrefix + "<nick> or " + fastPrefix + "<nick> or " + fasterPrefix + "<nick>."
@@ -250,7 +251,7 @@ func main() {
 					} else if roles.Exists(possibleTarget) {
 						targets = append(targets, roles[possibleTarget]...)
 					}
-					if len(targets) != 0 {
+					if len(targets) == 0 {
 						log.Printf("User or Role '%s' does not exists", possibleTarget)
 						continue
 					}
@@ -280,6 +281,7 @@ func main() {
 					// list users in role if requested
 					if roles.Exists(possibleRoleName) && len(possibleRoleUsers) == 1 && possibleRoleUsers[0] == "list" && possibleRoleAction == "=" {
 						flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, roles.Users(possibleRoleName))
+						log.Println("listing users in role", possibleRoleName)
 						continue
 					}
 					// filter unknown users
@@ -288,8 +290,9 @@ func main() {
 							roleUsers = append(roleUsers, possibleRoleUser)
 						}
 					}
-					// if skip if there no user was found
+					// if skip if no user was found
 					if len(roleUsers) == 0 {
+						log.Println("no users to add/remove/set")
 						continue
 					}
 
@@ -391,7 +394,7 @@ func main() {
 					} else if roles.Exists(possibleTarget) {
 						targets = append(targets, roles[possibleTarget]...)
 					}
-					if len(targets) != 0 {
+					if len(targets) == 0 {
 						log.Printf("User or Role '%s' does not exists", possibleTarget)
 						continue
 					}
@@ -421,6 +424,7 @@ func main() {
 					// list users in role if requested
 					if roles.Exists(possibleRoleName) && len(possibleRoleUsers) == 1 && possibleRoleUsers[0] == "list" && possibleRoleAction == "=" {
 						flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, roles.Users(possibleRoleName))
+						log.Println("listing users in role", possibleRoleName)
 						continue
 					}
 					// filter unknown users
@@ -429,8 +433,9 @@ func main() {
 							roleUsers = append(roleUsers, possibleRoleUser)
 						}
 					}
-					// if skip if there no user was found
+					// if skip if no user was found
 					if len(roleUsers) == 0 {
+						log.Println("no users to add/remove/set")
 						continue
 					}
 
