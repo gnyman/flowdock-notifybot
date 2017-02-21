@@ -236,7 +236,7 @@ func main() {
 					flowdock.SendMessageToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, roleHelpMessage)
 				}
 				if strings.HasPrefix(event.Content, rolePrefix+"list") {
-					flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, roles.Roles())
+					flowdock.SendMessageToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, roles.Roles())
 				}
 
 				for _, field := range notifRegex.FindAllStringSubmatch(event.Content, -1) {
@@ -280,7 +280,7 @@ func main() {
 					roleUsers := []string{}
 					// list users in role if requested
 					if roles.Exists(possibleRoleName) && len(possibleRoleUsers) == 1 && possibleRoleUsers[0] == "list" && possibleRoleAction == "=" {
-						flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, event.ThreadID, roles.Users(possibleRoleName))
+						flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roles.Users(possibleRoleName)})
 						log.Println("listing users in role", possibleRoleName)
 						continue
 					}
@@ -422,7 +422,7 @@ func main() {
 					roleUsers := []string{}
 					// list users in role if requested
 					if roles.Exists(possibleRoleName) && len(possibleRoleUsers) == 1 && possibleRoleUsers[0] == "list" && possibleRoleAction == "=" {
-						flowdock.SendCommentToFlowWithApiKey(flowdockAPIKey, event.Flow, messageID, roles.Users(possibleRoleName))
+						flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roles.Users(possibleRoleName)})
 						log.Println("listing users in role", possibleRoleName)
 						continue
 					}
