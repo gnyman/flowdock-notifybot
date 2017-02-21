@@ -147,16 +147,12 @@ func (r Roles) AddNotifyTag(role string, users []string) string {
 	if !r.Exists(role) {
 		return fmt.Sprintf("role %s added with users: %s", role, users)
 	}
-	existingUsers := make(map[string]bool)
-	for _, existingUser := range r[role] {
-		existingUsers[existingUser] = true
-	}
 	newUsers := []string{}
-	for _, newUser := range users {
-		if _, ok := existingUsers[newUser]; ok {
+	for _, user := range users {
+		if r.userExistsInRole(role, user) {
 			continue
 		}
-		newUsers = append(newUsers, newUser)
+		newUsers = append(newUsers, user)
 	}
 
 	if len(newUsers) == 0 {
@@ -171,14 +167,10 @@ func (r Roles) RemoveNotifyTag(role string, users []string) string {
 		return ""
 	}
 
-	existingUsers := make(map[string]bool)
-	for _, existingUser := range r[role] {
-		existingUsers[existingUser] = true
-	}
 	oldUsers := []string{}
-	for _, oldUser := range users {
-		if _, ok := existingUsers[oldUser]; ok {
-			oldUsers = append(oldUsers, oldUser)
+	for _, user := range users {
+		if r.userExistsInRole(role, user) {
+			oldUsers = append(oldUsers, user)
 		}
 	}
 
