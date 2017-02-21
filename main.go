@@ -284,6 +284,16 @@ func main() {
 						log.Println("listing users in role", possibleRoleName)
 						continue
 					}
+					// delete role if requested
+					if roles.Exists(possibleRoleName) && len(possibleRoleUsers) == 1 && possibleRoleUsers[0] == "delete" && possibleRoleAction == "=" {
+						roleNotifyTag := roles.DeleteNotifyTag(possibleRoleName)
+						roles.Delete(possibleRoleName)
+						roles.Save(roleStorage)
+						if roleNotifyTag != "" {
+							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roleNotifyTag})
+						}
+						continue
+					}
 					// filter unknown users
 					for _, possibleRoleUser := range possibleRoleUsers {
 						if users.Exists(possibleRoleUser) {
@@ -306,17 +316,6 @@ func main() {
 						}
 						break
 					case "-":
-						for _, roleUser := range roleUsers {
-							if roleUser == "delete" {
-								roleNotifyTag := roles.DeleteNotifyTag(possibleRoleName)
-								roles.Delete(possibleRoleName)
-								roles.Save(roleStorage)
-								if roleNotifyTag != "" {
-									flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roleNotifyTag})
-								}
-								continue
-							}
-						}
 						roleNotifyTag := roles.RemoveNotifyTag(possibleRoleName, roleUsers)
 						roles.Remove(possibleRoleName, roleUsers)
 						roles.Save(roleStorage)
@@ -427,6 +426,16 @@ func main() {
 						log.Println("listing users in role", possibleRoleName)
 						continue
 					}
+					// delete role if requested
+					if roles.Exists(possibleRoleName) && len(possibleRoleUsers) == 1 && possibleRoleUsers[0] == "delete" && possibleRoleAction == "=" {
+						roleNotifyTag := roles.DeleteNotifyTag(possibleRoleName)
+						roles.Delete(possibleRoleName)
+						roles.Save(roleStorage)
+						if roleNotifyTag != "" {
+							flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roleNotifyTag})
+						}
+						continue
+					}
 					// filter unknown users
 					for _, possibleRoleUser := range possibleRoleUsers {
 						if users.Exists(possibleRoleUser) {
@@ -449,17 +458,6 @@ func main() {
 						}
 						break
 					case "-":
-						for _, roleUser := range roleUsers {
-							if roleUser == "delete" {
-								roleNotifyTag := roles.DeleteNotifyTag(possibleRoleName)
-								roles.Delete(possibleRoleName)
-								roles.Save(roleStorage)
-								if roleNotifyTag != "" {
-									flowdock.EditMessageInFlowWithApiKey(flowdockAPIKey, org, flow, strconv.FormatInt(event.ID, 10), "", []string{roleNotifyTag})
-								}
-								continue
-							}
-						}
 						roleNotifyTag := roles.RemoveNotifyTag(possibleRoleName, roleUsers)
 						roles.Remove(possibleRoleName, roleUsers)
 						roles.Save(roleStorage)
