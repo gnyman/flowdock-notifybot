@@ -14,6 +14,7 @@ func TestAddRemoveSetDelete(t *testing.T) {
 	}
 
 	// add
+	roles.Add("foo", []string{"nick", "nack", "nick", "nack"})
 	roles.Add("foo", []string{"nick", "nack"})
 	roles.Add("bar", []string{"nack"})
 	roles.Add("foo", []string{"foo"})
@@ -31,9 +32,10 @@ func TestAddRemoveSetDelete(t *testing.T) {
 	}
 
 	// set
-	roles.Set("bar", []string{"foo", "bar"})
+	roles.Set("bar", []string{"foo", "bar", "foo", "bar"})
 	if len(roles) != 2 || len(roles["foo"]) != 2 || len(roles["bar"]) != 2 {
 		t.Errorf("Set failed")
+		t.Errorf("%v", roles)
 	}
 
 	// delete

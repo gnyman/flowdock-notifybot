@@ -57,6 +57,19 @@ func (r Roles) Exists(role string) bool {
 	return false
 }
 
+// userExistsInRole returns true if the user already belongs
+// to role
+func (r Roles) userExistsInRole(role, user string) bool {
+	if r.Exists(role) {
+		for _, u := range r[role] {
+			if u == user {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Delete deletes role if it exists
 func (r Roles) Delete(role string) {
 	delete(r, role)
@@ -64,11 +77,16 @@ func (r Roles) Delete(role string) {
 
 // Add adds users to a role
 func (r Roles) Add(role string, users []string) {
-	if r.Exists(role) {
-		r[role] = append(r[role], users...)
+	if !r.Exists(role) {
+		r.Set(role, users)
 		return
 	}
-	r[role] = users
+
+	for _, user := range users {
+		if !r.userExistsInRole(role, user) {
+			r[role] = append(r[role], user)
+		}
+	}
 }
 
 // Remove removes users from a role
@@ -76,28 +94,27 @@ func (r Roles) Remove(role string, users []string) {
 	if !r.Exists(role) {
 		return
 	}
-	existing := r[role]
-	unfiltered := []string{}
+	u := []string{}
 	// TODO: check if there's a go idiomatic way to remove
 	// a subset from a slice
-	for _, nick := range existing {
-		keep := true
-		for _, user := range users {
-			if user == nick {
-				keep = false
-				break
-			}
+	for _, user := range users {
+		if r.userExistsInRole(role, user) {
+			continue
 		}
-		if keep {
-			unfiltered = append(unfiltered, nick)
-		}
+		u = append(u, user)
 	}
-	r[role] = unfiltered
+	r[role] = u
 }
 
 // Set sets users (replacing existing users) to a role
 func (r Roles) Set(role string, users []string) {
-	r[role] = users
+	r[role] = []string{}
+
+	for _, user := range users {
+		if !r.userExistsInRole(role, user) {
+			r[role] = append(r[role], user)
+		}
+	}
 }
 
 // Print prints all roles and it's users
